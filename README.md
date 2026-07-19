@@ -9,7 +9,7 @@ servers.
 
 ```hcl
 module "dns" {
-  source = "github.com/cybercapybara/terraform-azurerm-dns"
+  source = "github.com/moveeeax/terraform-azurerm-dns"
 
   name                = "example.com"
   resource_group_name = "prod-rg"
