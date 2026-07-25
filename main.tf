@@ -13,6 +13,7 @@ resource "azurerm_dns_a_record" "this" {
   resource_group_name = var.resource_group_name
   ttl                 = each.value.ttl
   records             = each.value.records
+  target_resource_id  = each.value.target_resource_id
 }
 
 resource "azurerm_dns_cname_record" "this" {
@@ -23,6 +24,7 @@ resource "azurerm_dns_cname_record" "this" {
   resource_group_name = var.resource_group_name
   ttl                 = each.value.ttl
   record              = each.value.record
+  target_resource_id  = each.value.target_resource_id
 }
 
 resource "azurerm_dns_txt_record" "this" {
