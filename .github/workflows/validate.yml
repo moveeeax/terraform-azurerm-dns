@@ -24,6 +24,15 @@ jobs:
       - name: validate
         run: tofu validate
 
+      # Uses mock_provider, so it needs no Azure credentials and no network.
+      - name: test
+        run: tofu test
+
+      - uses: terraform-linters/setup-tflint@v4
+
+      - name: tflint
+        run: tflint --recursive
+
       - name: validate example
         working-directory: examples/basic
         run: |
