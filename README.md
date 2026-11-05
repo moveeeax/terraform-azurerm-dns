@@ -9,7 +9,7 @@ servers.
 
 ```hcl
 module "dns" {
-  source = "github.com/moveeeax/terraform-azurerm-dns"
+  source = "github.com/moveeeax/terraform-azurerm-dns?ref=v1.0.0"
 
   name                = "example.com"
   resource_group_name = "prod-rg"
@@ -37,7 +37,7 @@ target's current address and tracks it as the target changes.
 
 ```hcl
 module "dns" {
-  source = "github.com/moveeeax/terraform-azurerm-dns"
+  source = "github.com/moveeeax/terraform-azurerm-dns?ref=v1.0.0"
 
   name                = "example.com"
   resource_group_name = "prod-rg"
@@ -64,7 +64,10 @@ time rather than failing part-way through an apply.
 | Name      | Version  |
 |-----------|----------|
 | terraform | >= 1.5   |
-| azurerm   | >= 3.0   |
+| azurerm   | >= 3.0, < 6.0 |
+
+CI validates and tests the module against the 3.0.0 floor and the latest 5.x
+release. 6.x is excluded until it has been tested.
 
 ## Inputs
 
