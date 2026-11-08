@@ -1,8 +1,8 @@
 # terraform-azurerm-dns
 
 Terraform module that manages an [Azure](https://azure.microsoft.com/) public
-DNS zone. It creates a single DNS zone and, optionally, sets of A, CNAME, and
-TXT records driven by input maps, exposing the zone ID and its delegated name
+DNS zone. It creates a single DNS zone and, optionally, sets of A, AAAA, CNAME,
+TXT, MX, CAA, SRV and NS records driven by input maps, exposing the zone ID and its delegated name
 servers.
 
 ## Usage
@@ -59,6 +59,61 @@ Each `a_records` entry must set exactly one of `records` or
 `target_resource_id`. Supplying `@` as a `cname_records` key is rejected at plan
 time rather than failing part-way through an apply.
 
+### Mail, CAA, SRV and subdomain delegation
+
+```hcl
+module "dns" {
+  source = "github.com/moveeeax/terraform-azurerm-dns?ref=v1.0.0"
+
+  name                = "example.com"
+  resource_group_name = "prod-rg"
+
+  aaaa_records = {
+    "www" = { records = ["2001:db8::10"] }
+  }
+
+  mx_records = {
+    "@" = {
+      records = [
+        { preference = 10, exchange = "mx1.example.net" },
+        { preference = 20, exchange = "mx2.example.net" },
+      ]
+    }
+  }
+
+  caa_records = {
+    "@" = {
+      records = [
+        { tag = "issue", value = "letsencrypt.org" }, # flags defaults to 0
+        { tag = "iodef", value = "mailto:security@example.com" },
+      ]
+    }
+  }
+
+  srv_records = {
+    "_sip._tcp" = {
+      records = [{ priority = 10, weight = 60, port = 5060, target = "sip.example.com" }]
+    }
+  }
+
+  # Delegate dev.example.com to another zone, e.g. a child module's name_servers output.
+  ns_records = {
+    "dev" = { records = module.dev_dns.name_servers }
+  }
+}
+```
+
+Recommended for most zones: one `caa_records` entry at `@` listing the CAs you
+actually use, so no other CA may issue certificates for the domain. The module
+does not create one by default, so upgrading never adds records to an existing
+zone.
+
+`aaaa_records` accepts `target_resource_id` alias record sets exactly like
+`a_records`. `ns_records` rejects `@`: Azure creates the apex NS record set with
+the zone, so a second one fails at apply time. MX preference, SRV priority,
+weight and port are checked against 0-65535 and CAA flags against 0-255 at plan
+time.
+
 ## Requirements
 
 | Name      | Version  |
@@ -78,6 +133,11 @@ release. 6.x is excluded until it has been tested.
 | `a_records`           | Map of A records keyed by record name. Use `@` for the zone apex.             | `map(object)` | `{}`    |    no    |
 | `cname_records`       | Map of CNAME records keyed by record name. `@` is rejected.                   | `map(object)` | `{}`    |    no    |
 | `txt_records`         | Map of TXT records keyed by record name.                                      | `map(object)` | `{}`    |    no    |
+| `aaaa_records`        | Map of AAAA records keyed by record name. Use `@` for the zone apex.          | `map(object)` | `{}`    |    no    |
+| `mx_records`          | Map of MX records keyed by record name.                                       | `map(object)` | `{}`    |    no    |
+| `caa_records`         | Map of CAA records keyed by record name.                                      | `map(object)` | `{}`    |    no    |
+| `srv_records`         | Map of SRV records keyed by `_service._proto`.                                | `map(object)` | `{}`    |    no    |
+| `ns_records`          | Map of NS records for subdomain delegation. `@` is rejected.                  | `map(object)` | `{}`    |    no    |
 | `tags`                | Map of tags applied to the DNS zone.                                          | `map(string)` | `{}`    |    no    |
 
 Record map value shapes (`ttl` defaults to `3600` everywhere):
@@ -87,6 +147,11 @@ Record map value shapes (`ttl` defaults to `3600` everywhere):
 | `a_records`     | `ttl`, `records` (list of IPv4), `target_resource_id` — exactly one of the latter two |
 | `cname_records` | `ttl`, `record` (string), `target_resource_id` — exactly one of the latter two        |
 | `txt_records`   | `ttl`, `records` (list of TXT values, at least one)               |
+| `aaaa_records`  | `ttl`, `records` (list of IPv6), `target_resource_id`; exactly one of the latter two |
+| `mx_records`    | `ttl`, `records` (list of `{ preference, exchange }`, at least one) |
+| `caa_records`   | `ttl`, `records` (list of `{ flags = 0, tag, value }`, at least one) |
+| `srv_records`   | `ttl`, `records` (list of `{ priority, weight, port, target }`, at least one) |
+| `ns_records`    | `ttl`, `records` (list of name server host names, at least one)  |
 
 ## Outputs
 

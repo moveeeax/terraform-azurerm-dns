@@ -58,6 +58,32 @@ module "dns" {
     }
   }
 
+  mx_records = {
+    "@" = {
+      records = [
+        { preference = 10, exchange = "mx1.example.net" },
+        { preference = 20, exchange = "mx2.example.net" },
+      ]
+    }
+  }
+
+  # Only this CA may issue certificates for the zone.
+  caa_records = {
+    "@" = {
+      records = [
+        { tag = "issue", value = "letsencrypt.org" },
+        { tag = "iodef", value = "mailto:security@example.com" },
+      ]
+    }
+  }
+
+  # Hand the dev subdomain to another zone's name servers.
+  ns_records = {
+    "dev" = {
+      records = ["ns1-01.azure-dns.com.", "ns2-01.azure-dns.net."]
+    }
+  }
+
   tags = {
     Environment = "sandbox"
     ManagedBy   = "terraform"
