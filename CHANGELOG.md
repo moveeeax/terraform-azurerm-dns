@@ -6,6 +6,8 @@ All notable changes to this module are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-08
+
 ### Added
 
 - `aaaa_records`, `mx_records`, `caa_records`, `srv_records` and `ns_records`
@@ -30,6 +32,7 @@ Initial release with A, CNAME and TXT records, alias record sets via
 `target_resource_id`, and plan-time rejection of a CNAME at the zone apex
 (`v0.1.0` points at the same commit).
 
-[Unreleased]: https://github.com/moveeeax/terraform-azurerm-dns/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/moveeeax/terraform-azurerm-dns/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/moveeeax/terraform-azurerm-dns/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/moveeeax/terraform-azurerm-dns/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/moveeeax/terraform-azurerm-dns/releases/tag/v1.0.0
