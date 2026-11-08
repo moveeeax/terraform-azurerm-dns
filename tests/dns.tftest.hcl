@@ -186,3 +186,241 @@ run "rejects_negative_ttl" {
 
   expect_failures = [var.a_records]
 }
+
+run "defaults_create_no_new_record_types" {
+  command = plan
+
+  assert {
+    condition = (
+      length(azurerm_dns_aaaa_record.this) == 0 &&
+      length(azurerm_dns_mx_record.this) == 0 &&
+      length(azurerm_dns_caa_record.this) == 0 &&
+      length(azurerm_dns_srv_record.this) == 0 &&
+      length(azurerm_dns_ns_record.this) == 0
+    )
+    error_message = "Without the new inputs, no AAAA, MX, CAA, SRV or NS record sets may be planned."
+  }
+}
+
+run "mail_ipv6_caa_srv_and_delegation" {
+  variables {
+    aaaa_records = {
+      "www" = { records = ["2001:db8::10"] }
+    }
+    mx_records = {
+      "@" = {
+        records = [
+          { preference = 10, exchange = "mx1.example.net" },
+          { preference = 20, exchange = "mx2.example.net" },
+        ]
+      }
+    }
+    caa_records = {
+      "@" = {
+        ttl = 300
+        records = [
+          { tag = "issue", value = "letsencrypt.org" },
+          { flags = 0, tag = "iodef", value = "mailto:security@example.com" },
+        ]
+      }
+    }
+    srv_records = {
+      "_sip._tcp" = {
+        records = [{ priority = 10, weight = 60, port = 5060, target = "sip.example.com" }]
+      }
+    }
+    ns_records = {
+      "dev" = { records = ["ns1.example.net", "ns2.example.net"] }
+    }
+  }
+
+  assert {
+    condition     = azurerm_dns_aaaa_record.this["www"].ttl == 3600 && length(azurerm_dns_aaaa_record.this["www"].records) == 1
+    error_message = "AAAA records must default to a 3600s TTL and send the supplied addresses."
+  }
+
+  assert {
+    condition     = azurerm_dns_mx_record.this["@"].name == "@" && length(azurerm_dns_mx_record.this["@"].record) == 2
+    error_message = "MX records must keep their name and send every exchange."
+  }
+
+  assert {
+    condition     = contains([for r in azurerm_dns_mx_record.this["@"].record : r.preference], "10")
+    error_message = "MX preference must be passed to the provider as a string."
+  }
+
+  assert {
+    condition     = azurerm_dns_caa_record.this["@"].ttl == 300 && length(azurerm_dns_caa_record.this["@"].record) == 2
+    error_message = "CAA records must honour ttl and send every record."
+  }
+
+  assert {
+    condition     = alltrue([for r in azurerm_dns_caa_record.this["@"].record : r.flags == 0])
+    error_message = "CAA flags must default to 0."
+  }
+
+  assert {
+    condition     = one(azurerm_dns_srv_record.this["_sip._tcp"].record).port == 5060
+    error_message = "SRV records must send the port."
+  }
+
+  assert {
+    condition     = azurerm_dns_ns_record.this["dev"].records == tolist(["ns1.example.net", "ns2.example.net"])
+    error_message = "NS records must delegate to the supplied name servers in order."
+  }
+
+  assert {
+    condition     = azurerm_dns_ns_record.this["dev"].zone_name == azurerm_dns_zone.this.name
+    error_message = "New record types must be attached to the zone this module creates."
+  }
+}
+
+run "aaaa_apex_can_alias_an_azure_resource" {
+  variables {
+    aaaa_records = {
+      "@" = {
+        target_resource_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Network/publicIPAddresses/example-lb-v6"
+      }
+    }
+  }
+
+  assert {
+    condition     = azurerm_dns_aaaa_record.this["@"].records == null
+    error_message = "An alias AAAA record set must not also send literal addresses."
+  }
+}
+
+run "rejects_aaaa_record_with_both_records_and_alias" {
+  command = plan
+
+  variables {
+    aaaa_records = {
+      "www" = {
+        records            = ["2001:db8::10"]
+        target_resource_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Network/publicIPAddresses/example-lb-v6"
+      }
+    }
+  }
+
+  expect_failures = [var.aaaa_records]
+}
+
+run "rejects_empty_aaaa_record_list" {
+  command = plan
+
+  variables {
+    aaaa_records = {
+      "www" = { records = [] }
+    }
+  }
+
+  expect_failures = [var.aaaa_records]
+}
+
+run "rejects_empty_mx_record_list" {
+  command = plan
+
+  variables {
+    mx_records = {
+      "@" = { records = [] }
+    }
+  }
+
+  expect_failures = [var.mx_records]
+}
+
+run "rejects_out_of_range_mx_preference" {
+  command = plan
+
+  variables {
+    mx_records = {
+      "@" = { records = [{ preference = 70000, exchange = "mx1.example.net" }] }
+    }
+  }
+
+  expect_failures = [var.mx_records]
+}
+
+run "rejects_empty_caa_record_list" {
+  command = plan
+
+  variables {
+    caa_records = {
+      "@" = { records = [] }
+    }
+  }
+
+  expect_failures = [var.caa_records]
+}
+
+run "rejects_out_of_range_caa_flags" {
+  command = plan
+
+  variables {
+    caa_records = {
+      "@" = { records = [{ flags = 256, tag = "issue", value = "letsencrypt.org" }] }
+    }
+  }
+
+  expect_failures = [var.caa_records]
+}
+
+run "rejects_empty_srv_record_list" {
+  command = plan
+
+  variables {
+    srv_records = {
+      "_sip._tcp" = { records = [] }
+    }
+  }
+
+  expect_failures = [var.srv_records]
+}
+
+run "rejects_out_of_range_srv_port" {
+  command = plan
+
+  variables {
+    srv_records = {
+      "_sip._tcp" = { records = [{ priority = 10, weight = 60, port = 65536, target = "sip.example.com" }] }
+    }
+  }
+
+  expect_failures = [var.srv_records]
+}
+
+run "rejects_ns_record_at_the_apex" {
+  command = plan
+
+  variables {
+    ns_records = {
+      "@" = { records = ["ns1.example.net"] }
+    }
+  }
+
+  expect_failures = [var.ns_records]
+}
+
+run "rejects_empty_ns_record_list" {
+  command = plan
+
+  variables {
+    ns_records = {
+      "dev" = { records = [] }
+    }
+  }
+
+  expect_failures = [var.ns_records]
+}
+
+run "rejects_negative_ttl_on_new_record_types" {
+  command = plan
+
+  variables {
+    srv_records = {
+      "_sip._tcp" = { ttl = -1, records = [{ priority = 10, weight = 60, port = 5060, target = "sip.example.com" }] }
+    }
+  }
+
+  expect_failures = [var.srv_records]
+}
